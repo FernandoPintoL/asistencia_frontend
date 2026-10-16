@@ -1,0 +1,7 @@
+# Configuración local
+.env
+env_frontend
+
+# Dependencias y compilado (se generan con npm ci / npm run build)
+node_modules/
+dist/
