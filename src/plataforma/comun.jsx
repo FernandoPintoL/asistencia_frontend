@@ -77,6 +77,44 @@ export function EstadoEc2({ estado }) {
   return <span className={`badge-estado ${clase}`}>{texto}</span>;
 }
 
+// ¿Responde la aplicación del tenant? (GET /plataforma/salud/)
+const SALUD = {
+  responde: ["Responde", "e-PRESENTE", "bi-check-circle"],
+  instalando: ["Instalando", "e-PENDIENTE", "bi-hourglass-split"],
+  caido: ["Caída", "e-FALTA", "bi-x-octagon"],
+  suspendido: ["Detenida", "e-SUSPENDIDO", "bi-pause-circle"],
+  en_operacion: ["En operación", "e-PENDIENTE", "bi-gear"],
+  sin_desplegar: ["Sin desplegar", "e-PROGRAMADA", "bi-dash-circle"],
+};
+
+export function SaludApp({ salud }) {
+  if (!salud) return <span className="text-secondary small">…</span>;
+  const [texto, clase, icono] = SALUD[salud.estado] || [salud.estado, "e-PROGRAMADA", "bi-question-circle"];
+  return <span className={`badge-estado ${clase}`} title={salud.detalle}><i className={`bi ${icono}`} /> {texto}</span>;
+}
+
+/**
+ * Barras horizontales de una sola serie (un color: la identidad la da la etiqueta, no el color).
+ * filas: [{clave, etiqueta, valor, texto?, detalle?}]
+ */
+export function Barras({ filas, max, etiquetaAncho = "8.5rem" }) {
+  const tope = max ?? Math.max(1, ...filas.map((f) => f.valor || 0));
+  return (
+    <div className="barras" role="list">
+      {filas.map((f) => (
+        <div key={f.clave} className="barra-fila" role="listitem" title={f.detalle || `${f.etiqueta}: ${f.texto ?? f.valor}`}
+             style={{ gridTemplateColumns: `${etiquetaAncho} 1fr auto` }}>
+          <span className="barra-etiqueta text-truncate">{f.etiqueta}</span>
+          <span className="barra-pista">
+            {f.valor > 0 && <span className="barra-relleno" style={{ width: `${Math.max(2, (100 * f.valor) / tope)}%` }} />}
+          </span>
+          <span className="barra-valor">{f.texto ?? f.valor}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const enCurso = (op) => op && (op.estado === "PENDIENTE" || op.estado === "EJECUTANDO");
 
 /** Barra de progreso de una operación (RF-11). */

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useConfirmar } from "../components/Confirmar";
 import { useFlash, useManejarError, useSesion, useTitulo } from "../sesion";
-import { Enlace, EstadoEc2, EstadoOperacion, EstadoTenant, Progreso, Severidad, momento, tamano, useConsultaPeriodica } from "./comun";
+import { Enlace, EstadoEc2, EstadoOperacion, SaludApp, EstadoTenant, Progreso, Severidad, momento, tamano, useConsultaPeriodica } from "./comun";
 
 // Igual que servicios.PERMITIDAS en el backend (que es quien decide de verdad)
 const PERMITE = {
@@ -45,6 +45,7 @@ export default function TenantDetalle() {
   const [t, setT] = useState(null);
   const [aws, setAws] = useState(null); // estado real de las instancias en AWS
   const [consultandoAws, setConsultandoAws] = useState(false);
+  const [salud, setSalud] = useState(null); // ¿responde la aplicación?
   const [respaldos, setRespaldos] = useState([]);
   const [alertas, setAlertas] = useState([]);
   const [version, setVersion] = useState("");
@@ -64,6 +65,7 @@ export default function TenantDetalle() {
   // Consulta a AWS aparte (más lenta): al abrir, cuando cambia el estado del tenant y a pedido
   const consultarAws = useCallback(() => {
     setConsultandoAws(true);
+    api(`/plataforma/salud/?tenant=${id}`).then((r) => setSalud(r.tenants[id] || null)).catch(() => setSalud(null));
     return api(`/plataforma/tenants/${id}/instancias/`)
       .then(setAws)
       .catch((e) => setAws({ error: e.message }))
@@ -165,11 +167,14 @@ export default function TenantDetalle() {
     <>
       <div className="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
         <div>
-          {esAdmin && <Link to="/plataforma" className="small text-secondary text-decoration-none"><i className="bi bi-arrow-left" /> Tenants</Link>}
+          {esAdmin && <Link to="/plataforma/tenants" className="small text-secondary text-decoration-none"><i className="bi bi-arrow-left" /> Tenants</Link>}
           <h1 className="h3 mb-1 mt-1">{t.nombre}</h1>
           <div className="d-flex gap-2 align-items-center">
             <span className="font-monospace text-secondary">{t.identificador}</span>
             <EstadoTenant estado={t.estado} />
+            {salud && salud.estado !== "sin_desplegar" && (
+              <span className="small text-secondary d-inline-flex align-items-center gap-1">App: <SaludApp salud={salud} /></span>
+            )}
           </div>
         </div>
         {esAdmin && t.estado !== "ELIMINADO" && (

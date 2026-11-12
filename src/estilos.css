@@ -44,3 +44,14 @@ tr.hoy td { background: #eef6fa; }
 @keyframes girar { to { transform: rotate(360deg); } }
 .girando { animation: girar .8s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .girando { animation: none; } }
+
+/* Barras horizontales (inicio y comparación de motores) */
+.barras { display: grid; gap: .55rem; }
+.barra-fila { display: grid; align-items: center; gap: .75rem; font-size: .9rem; }
+.barra-etiqueta { color: var(--ink); }
+.barra-pista { height: 10px; background: #edf1f6; border-radius: 0 4px 4px 0; overflow: hidden; }
+.barra-relleno { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; }
+.barra-valor { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.stat-sub { font-size: .85rem; color: #5b6880; }
+.tarjeta-link { color: inherit; text-decoration: none; display: block; height: 100%; }
+.tarjeta-link:hover .panel { border-color: #9cc7d6; }

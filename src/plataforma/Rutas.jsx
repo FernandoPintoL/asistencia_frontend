@@ -6,22 +6,25 @@ import { RequiereRol, useSesion } from "../sesion";
 import Alertas from "./Alertas";
 import Auditoria from "./Auditoria";
 import CambiarPlan from "./CambiarPlan";
+import ComparacionMotores from "./ComparacionMotores";
 import EliminarTenant from "./EliminarTenant";
 import Login from "./Login";
 import MiTenant from "./MiTenant";
 import OperacionDetalle from "./OperacionDetalle";
 import Operaciones from "./Operaciones";
 import Planes from "./Planes";
+import Resumen from "./Resumen";
 import TenantDetalle from "./TenantDetalle";
 import TenantNuevo from "./TenantNuevo";
 import Tenants from "./Tenants";
 
 const ENLACES = {
   plataforma: [
-    ["/plataforma", "Tenants", true],
-    ["/plataforma/tenants/nuevo", "Nuevo tenant"],
+    ["/plataforma", "Inicio", true],
+    ["/plataforma/tenants", "Tenants"],
     ["/plataforma/planes", "Planes"],
     ["/plataforma/operaciones", "Operaciones"],
+    ["/plataforma/motores", "Motores"],
     ["/plataforma/alertas", "Alertas"],
     ["/plataforma/auditoria", "Auditoría"],
   ],
@@ -60,10 +63,10 @@ function Layout() {
   return <Plantilla barra={barra}><Outlet /></Plantilla>;
 }
 
-/** Inicio según el rol: el admin de la plataforma ve tenants; el de un tenant, sus servicios. */
+/** Inicio según el rol: el admin de la plataforma ve el resumen; el de un tenant, sus servicios. */
 function Inicio() {
   const { sesion } = useSesion();
-  return sesion.rol === "tenant" ? <Navigate to="/plataforma/mi-tenant" replace /> : <Tenants />;
+  return sesion.rol === "tenant" ? <Navigate to="/plataforma/mi-tenant" replace /> : <Resumen />;
 }
 
 const soloPlataforma = (pagina) => <RequiereRol rol="plataforma">{pagina}</RequiereRol>;
@@ -75,7 +78,9 @@ export default function RutasPlataforma() {
       <Route element={<RequiereRol rol={["plataforma", "tenant"]}><Layout /></RequiereRol>}>
         <Route index element={<Inicio />} />
         <Route path="mi-tenant" element={<MiTenant />} />
+        <Route path="tenants" element={soloPlataforma(<Tenants />)} />
         <Route path="tenants/nuevo" element={soloPlataforma(<TenantNuevo />)} />
+        <Route path="motores" element={soloPlataforma(<ComparacionMotores />)} />
         <Route path="tenants/:id" element={<TenantDetalle />} />
         <Route path="tenants/:id/cambiar-plan" element={soloPlataforma(<CambiarPlan />)} />
         <Route path="tenants/:id/eliminar" element={soloPlataforma(<EliminarTenant />)} />
