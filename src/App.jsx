@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { RequiereRol } from "./sesion";
 import LoginEstudiante from "./pages/LoginEstudiante";
@@ -11,11 +12,16 @@ import Actividades from "./pages/panel/Actividades";
 import Modulos from "./pages/panel/Modulos";
 import ModuloImportar from "./pages/panel/ModuloImportar";
 
+// Plataforma de tenants: solo se incluye al compilar con VITE_PLATAFORMA=true.
+// Los tenants compilan sin esa variable y su build no contiene este código.
+const PLATAFORMA = import.meta.env.VITE_PLATAFORMA === "true";
+const RutasPlataforma = PLATAFORMA ? lazy(() => import("./plataforma/Rutas")) : null;
+
 export default function App() {
   return (
     <Routes>
       {/* Estudiante */}
-      <Route path="/" element={<LoginEstudiante />} />
+      <Route path="/" element={PLATAFORMA ? <Navigate to="/plataforma" replace /> : <LoginEstudiante />} />
       <Route path="/mi-asistencia" element={<RequiereRol rol="estudiante"><MiAsistencia /></RequiereRol>} />
 
       {/* Administrador */}
@@ -28,6 +34,11 @@ export default function App() {
         <Route path="modulos" element={<Modulos />} />
         <Route path="nuevo-modulo" element={<ModuloImportar />} />
       </Route>
+
+      {/* Plataforma de tenants */}
+      {PLATAFORMA && (
+        <Route path="/plataforma/*" element={<Suspense fallback={null}><RutasPlataforma /></Suspense>} />
+      )}
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

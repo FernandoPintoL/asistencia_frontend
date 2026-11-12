@@ -3,7 +3,12 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { alExpirarSesion, guardarSesion, leerSesion } from "./api";
 
-export const LOGIN = { estudiante: "/", admin: "/panel/login" };
+export const LOGIN = {
+  estudiante: "/",
+  admin: "/panel/login",
+  plataforma: "/plataforma/login", // administrador de la plataforma de tenants
+  tenant: "/plataforma/login", // administrador de un tenant (solo consulta sus servicios)
+};
 
 // ───────────── Mensajes (equivalente a django.contrib.messages) ─────────────
 
@@ -21,7 +26,9 @@ export function FlashProvider({ children }) {
   }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const flash = useCallback((tipo, texto) => {
-    setMensajes((m) => [...m, { tipo, texto, id: `${Date.now()}-${Math.random()}` }]);
+    // Un aviso idéntico al que ya está en pantalla no se repite
+    setMensajes((m) => (m.some((x) => x.tipo === tipo && x.texto === texto)
+      ? m : [...m, { tipo, texto, id: `${Date.now()}-${Math.random()}` }]));
   }, []);
   const cerrar = useCallback((id) => setMensajes((m) => m.filter((x) => x.id !== id)), []);
 
@@ -73,10 +80,11 @@ export function SesionProvider({ children }) {
 
 export const useSesion = () => useContext(SesionContext);
 
-/** Protege una ruta: si no hay sesión con ese rol, manda al login. */
+/** Protege una ruta: si no hay sesión con ese rol (o uno de esos roles), manda al login. */
 export function RequiereRol({ rol, children }) {
   const { sesion } = useSesion();
-  if (sesion?.rol !== rol) return <Navigate to={LOGIN[rol]} replace />;
+  const roles = Array.isArray(rol) ? rol : [rol];
+  if (!roles.includes(sesion?.rol)) return <Navigate to={LOGIN[roles[0]]} replace />;
   return children;
 }
 

@@ -21,6 +21,7 @@ npm run dev               # http://localhost:5173
 | Variable | Para qué |
 |---|---|
 | `VITE_API_URL` | Dirección del backend terminada en `/api`, ej. `http://127.0.0.1:8000/api` |
+| `VITE_PLATAFORMA` | `true` solo en la instalación de la plataforma de tenants (ver abajo) |
 
 ## Estructura
 | Archivo | Qué contiene |
@@ -34,6 +35,7 @@ npm run dev               # http://localhost:5173
 | `src/components/` | Piezas reutilizables (estado, paginación, plantilla) |
 | `src/pages/` | Pantallas del estudiante |
 | `src/pages/panel/` | Pantallas del administrador |
+| `src/plataforma/` | Plataforma de tenants (solo con `VITE_PLATAFORMA=true`) |
 
 ## Despliegue
 En Vercel, Netlify o similar. Carpeta raíz: `frontend/`, comando `npm run build`, carpeta de salida
@@ -41,3 +43,32 @@ En Vercel, Netlify o similar. Carpeta raíz: `frontend/`, comando `npm run build
 
 `vercel.json` y `public/_redirects` ya están incluidos para que las rutas de React
 (ej. `/panel/modulos`) funcionen al recargar la página.
+
+## Plataforma de tenants (`src/plataforma/`)
+
+Pantallas para crear y administrar tenants (instituciones), cada uno con su propio frontend,
+backend y base de datos en AWS. **Solo se compilan con `VITE_PLATAFORMA=true`**: los tenants
+usan este mismo repositorio sin esa variable y su build no contiene nada de la plataforma
+(se carga con `lazy()` y Vite la descarta).
+
+```powershell
+# backend con PLATAFORMA_HABILITADA=True y el worker encendidos (ver README del backend)
+$env:VITE_PLATAFORMA="true"; npm run dev     # http://localhost:5173/plataforma
+```
+
+| Ruta | Quién | Para qué |
+|---|---|---|
+| `/plataforma/login` | todos | Ingreso (el rol lo decide el backend) |
+| `/plataforma` | admin plataforma | Tenants con filtros por nombre, estado, plan y entorno; progreso en vivo |
+| `/plataforma/tenants/nuevo` | admin plataforma | Alta: datos, plan (tarjetas con sus características), entorno, motor y versión |
+| `/plataforma/tenants/:id` | admin plataforma / admin del tenant | Datos, servicios, operaciones y respaldos; actualizar, suspender/reanudar, respaldar y restaurar |
+| `/plataforma/tenants/:id/cambiar-plan` | admin plataforma | Qué recursos cambian y con qué efecto, antes de confirmar |
+| `/plataforma/tenants/:id/eliminar` | admin plataforma | Recursos y datos que se borrarán; confirmación escribiendo el identificador |
+| `/plataforma/operaciones` | admin plataforma | Historial: quién, cuándo, resultado, duración |
+| `/plataforma/operaciones/:id` | admin plataforma / admin del tenant | Progreso en vivo, error comprensible, reintento, versiones usadas y registro |
+| `/plataforma/planes` | admin plataforma | Catálogo de planes: crear y editar recursos, límites y precio |
+| `/plataforma/alertas` | admin plataforma / admin del tenant | Alertas de Grafana con tenant, severidad y hora de detección |
+| `/plataforma/auditoria` | admin plataforma | Quién hizo qué y cuándo |
+| `/plataforma/mi-tenant` | admin del tenant | Estado de los servicios de su institución |
+
+Las pantallas consultan al backend cada 2 a 5 segundos solo mientras hay una operación en curso.

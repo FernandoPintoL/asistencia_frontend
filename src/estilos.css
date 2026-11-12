@@ -28,3 +28,16 @@ tr.hoy td { background: #eef6fa; }
 .contenedor { max-width: 1080px; }
 :focus-visible { outline: 3px solid #7fc0d6; outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ── Plataforma de tenants ── */
+.plan-tarjeta { border-width: 2px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.plan-tarjeta:hover:not(:disabled) { border-color: #9cc7d6; }
+.plan-tarjeta.elegido { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(30,111,140,.15); }
+.plan-tarjeta:disabled { opacity: .55; cursor: default; }
+.plan-lista li { margin-bottom: .25rem; }
+.plan-lista .bi { color: var(--accent); margin-right: .35rem; }
+.registro { background: #0f1726; color: #d6deeb; font-size: .78rem; line-height: 1.45; padding: 1rem;
+  border-radius: .5rem; max-height: 460px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+.panel.border-primary { border-color: #9cc7d6 !important; }
+.panel.border-danger { border-color: #e6a9a5 !important; }
+.e-SUSPENDIDO { background: #e8e4f4; color: #5b4a9a; }
