@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api";
 import { fecha } from "../../formato";
+import { useConfirmar } from "../../components/Confirmar";
 import { useManejarError, useTitulo } from "../../sesion";
 
 /**
@@ -11,6 +12,7 @@ import { useManejarError, useTitulo } from "../../sesion";
 export default function ModuloImportar() {
   const navigate = useNavigate();
   const manejarError = useManejarError();
+  const pedirConfirmacion = useConfirmar(); // "confirmar" ya es el paso 2 de la importación
   const [activo, setActivo] = useState(null);
   const [nombre, setNombre] = useState("");
   const [archivos, setArchivos] = useState({ estudiantes: null, fechas: null });
@@ -64,7 +66,15 @@ export default function ModuloImportar() {
   }
 
   async function confirmar() {
-    if (!window.confirm("Se activará un módulo nuevo sin registros de asistencia. El módulo actual se conserva en la base de datos pero dejará de estar activo. ¿Continuar?")) return;
+    const ok = await pedirConfirmacion({
+      titulo: "¿Activar el módulo nuevo?",
+      mensaje: (
+        <p className="mb-0">Se activará un módulo nuevo sin registros de asistencia. El módulo actual se conserva en la
+          base de datos, pero dejará de estar activo.</p>
+      ),
+      boton: "Activar módulo",
+    });
+    if (!ok) return;
     const r = await enviar("/panel/modulos/importar/confirmar/");
     if (r) navigate("/panel", { state: { flash: { tipo: "success", texto: r.detail } } });
   }

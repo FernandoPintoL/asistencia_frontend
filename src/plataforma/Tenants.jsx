@@ -13,6 +13,7 @@ export default function Tenants() {
   const f = useFiltros(["q", "estado", "plan", "entorno"]);
   const [datos, setDatos] = useState(null);
   const [planes, setPlanes] = useState([]);
+  const [ips, setIps] = useState(null);
 
   const cargar = useCallback(
     () => api(`/plataforma/tenants/?${f.consulta}`).then(setDatos).catch(manejarError),
@@ -23,6 +24,7 @@ export default function Tenants() {
   }, [cargar]);
   useEffect(() => {
     api("/plataforma/planes/").then(setPlanes).catch(manejarError);
+    api("/plataforma/aws/cuotas/").then((d) => setIps(d.ips_elasticas)).catch(() => setIps(null));
   }, [manejarError]);
 
   const hayEnCurso = !!datos?.results.some((t) => t.operacion_en_curso);
@@ -35,7 +37,15 @@ export default function Tenants() {
           <h1 className="h3 mb-1">Tenants</h1>
           <p className="text-secondary mb-0">Cada tenant es una institución con su propio frontend, backend y base de datos en AWS.</p>
         </div>
-        <Link className="btn btn-primary" to="/plataforma/tenants/nuevo"><i className="bi bi-plus-lg" /> Nuevo tenant</Link>
+        <div className="d-flex align-items-center gap-3">
+          {ips && (
+            <span className={`small ${ips.libres === 0 ? "text-danger fw-semibold" : ips.libres === 1 ? "text-warning-emphasis fw-semibold" : "text-secondary"}`}
+                  title="Cada tenant ocupa una IP elástica para su frontend. Límite de la cuenta en esta región.">
+              <i className="bi bi-hdd-network" /> IPs elásticas: {ips.usadas}/{ips.limite}
+            </span>
+          )}
+          <Link className="btn btn-primary" to="/plataforma/tenants/nuevo"><i className="bi bi-plus-lg" /> Nuevo tenant</Link>
+        </div>
       </div>
 
       <form className="panel p-3 mb-3 row g-2 align-items-end" onSubmit={f.aplicar}>

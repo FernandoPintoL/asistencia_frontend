@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
-import { useManejarError, useSesion, useTitulo } from "../sesion";
-import { Enlace, EstadoOperacion, EstadoTenant, Progreso, Severidad, momento, tamano, useConsultaPeriodica } from "./comun";
+import { useConfirmar } from "../components/Confirmar";
+import { useFlash, useManejarError, useSesion, useTitulo } from "../sesion";
+import { Enlace, EstadoEc2, EstadoOperacion, EstadoTenant, Progreso, Severidad, momento, tamano, useConsultaPeriodica } from "./comun";
 
 // Igual que servicios.PERMITIDAS en el backend (que es quien decide de verdad)
 const PERMITE = {
@@ -14,6 +15,14 @@ const PERMITE = {
   respaldar: ["ACTIVO"],
   restaurar: ["ACTIVO"],
   eliminar: ["PENDIENTE", "ACTIVO", "SUSPENDIDO", "ERROR"],
+};
+
+const RESUMEN_AWS = {
+  encendidas: "encendidas",
+  detenidas: "detenidas",
+  en_transicion: "encendiéndose o deteniéndose",
+  mixtas: "unas encendidas y otras detenidas",
+  faltan: "incompletas (falta alguna)",
 };
 
 function Dato({ etiqueta, children }) {
@@ -31,7 +40,11 @@ export default function TenantDetalle() {
   const esAdmin = sesion.rol === "plataforma";
   const navigate = useNavigate();
   const manejarError = useManejarError();
+  const { flash } = useFlash();
+  const confirmar = useConfirmar();
   const [t, setT] = useState(null);
+  const [aws, setAws] = useState(null); // estado real de las instancias en AWS
+  const [consultandoAws, setConsultandoAws] = useState(false);
   const [respaldos, setRespaldos] = useState([]);
   const [alertas, setAlertas] = useState([]);
   const [version, setVersion] = useState("");
@@ -48,6 +61,20 @@ export default function TenantDetalle() {
   }, [cargar]);
   useConsultaPeriodica(cargar, !!t?.operacion_en_curso, 4000);
 
+  // Consulta a AWS aparte (más lenta): al abrir, cuando cambia el estado del tenant y a pedido
+  const consultarAws = useCallback(() => {
+    setConsultandoAws(true);
+    return api(`/plataforma/tenants/${id}/instancias/`)
+      .then(setAws)
+      .catch((e) => setAws({ error: e.message }))
+      .finally(() => setConsultandoAws(false));
+  }, [id]);
+  const estadoTenant = t?.estado;
+  const hayInstancias = !!t?.salidas?.instancias;
+  useEffect(() => {
+    if (hayInstancias) consultarAws();
+  }, [consultarAws, estadoTenant, hayInstancias]);
+
   async function encolar(ruta, body) {
     setEnviando(true);
     try {
@@ -59,26 +86,74 @@ export default function TenantDetalle() {
     }
   }
 
-  function suspender() {
-    if (window.confirm(
-      `Se suspenderá «${t.nombre}»: primero se toma un respaldo de la base y luego se detienen sus 3 servidores. ` +
-      "Nadie podrá usar la aplicación hasta reanudarlo. Los datos, la configuración y la dirección web se conservan. ¿Continuar?",
-    )) encolar("suspender", {});
+  async function suspender() {
+    const ok = await confirmar({
+      titulo: `¿Suspender «${t.nombre}»?`,
+      mensaje: (
+        <>
+          <p>Primero se toma un respaldo de la base y luego se detienen sus 3 servidores.
+            Nadie podrá usar la aplicación hasta reanudarlo.</p>
+          <p className="mb-0 text-secondary">Los datos, la configuración y la dirección web se conservan.</p>
+        </>
+      ),
+      boton: "Suspender",
+      variante: "warning",
+    });
+    if (ok) encolar("suspender", {});
   }
 
-  function reanudar() {
-    if (window.confirm(`Se encenderán los servidores de «${t.nombre}». La aplicación vuelve a estar disponible en unos minutos. ¿Continuar?`)) {
-      encolar("reanudar", {});
+  async function reanudar() {
+    const ok = await confirmar({
+      titulo: `¿Reanudar «${t.nombre}»?`,
+      mensaje: <p className="mb-0">Se encenderán sus 3 servidores. La aplicación vuelve a estar disponible en unos minutos.</p>,
+      boton: "Reanudar",
+      variante: "success",
+    });
+    if (ok) encolar("reanudar", {});
+  }
+
+  async function restaurar(r) {
+    const ok = await confirmar({
+      titulo: "Restaurar respaldo",
+      mensaje: (
+        <>
+          <p>Se restaurará el respaldo del <b>{momento(r.creado_en)}</b>.</p>
+          <p><b>Todos los datos actuales</b> (módulos, estudiantes, asistencias) se reemplazarán por los del
+            respaldo. Antes se guardará un respaldo de seguridad de los datos actuales.</p>
+          <p className="mb-0 text-secondary">La aplicación estará fuera de servicio unos minutos.</p>
+        </>
+      ),
+      boton: "Restaurar",
+      variante: "danger",
+      escribir: t.identificador,
+    });
+    if (ok) encolar("restaurar", { respaldo: r.id, confirmacion: t.identificador });
+  }
+
+  async function sincronizar() {
+    const detenidas = aws.resumen === "detenidas";
+    const ok = await confirmar({
+      titulo: "Sincronizar con AWS",
+      mensaje: (
+        <>
+          <p>En AWS sus 3 instancias están <b>{aws.resumen}</b>, pero la plataforma registra
+            «{t.estado_display}». Probablemente se {detenidas ? "detuvieron" : "encendieron"} desde la consola de AWS.</p>
+          <p className="mb-0">El tenant quedará como <b>«{detenidas ? "Suspendido" : "Activo"}»</b>. Solo cambia el
+            registro de la plataforma: no se toca nada en AWS.</p>
+        </>
+      ),
+      boton: "Sincronizar",
+    });
+    if (!ok) return;
+    setEnviando(true);
+    try {
+      const r = await api(`/plataforma/tenants/${id}/sincronizar/`, { method: "POST", body: {} });
+      flash("success", r.detail);
+      await cargar();
+    } catch (e) {
+      manejarError(e);
     }
-  }
-
-  function restaurar(r) {
-    const texto = window.prompt(
-      `RESTAURAR el respaldo del ${momento(r.creado_en)}.\n\nTodos los datos actuales (módulos, estudiantes, asistencias) ` +
-      "se reemplazarán por los del respaldo. Antes se guardará un respaldo de seguridad de los datos actuales. " +
-      `La aplicación estará fuera de servicio unos minutos.\n\nEscribe el identificador para confirmar:\n${t.identificador}`,
-    );
-    if (texto !== null) encolar("restaurar", { respaldo: r.id, confirmacion: texto });
+    setEnviando(false);
   }
 
   if (!t) return null;
@@ -130,6 +205,22 @@ export default function TenantDetalle() {
         </div>
       )}
 
+      {aws && !aws.error && !aws.coincide && (
+        <div className="alert alert-warning d-flex flex-wrap gap-2 align-items-start" role="status">
+          <i className="bi bi-exclamation-triangle fs-5" />
+          <div className="flex-grow-1">
+            <b>El estado en AWS no coincide.</b> La plataforma registra «{t.estado_display}», pero en AWS las
+            instancias están <b>{RESUMEN_AWS[aws.resumen] || aws.resumen}</b>.
+            {aws.motivo && <div className="small mt-1">{aws.motivo}</div>}
+          </div>
+          {esAdmin && aws.sincronizable && (
+            <button className="btn btn-sm btn-warning" disabled={!libre} onClick={sincronizar}>
+              <i className="bi bi-arrow-repeat" /> Sincronizar estado
+            </button>
+          )}
+        </div>
+      )}
+
       {t.operacion_en_curso && (
         <div className="panel p-3 mb-3 border-primary">
           <div className="d-flex justify-content-between mb-2">
@@ -167,18 +258,40 @@ export default function TenantDetalle() {
                   <Dato etiqueta="API"><Enlace url={s.url_api} /></Dato>
                 </div>
                 {s.instancias && (
-                  <table className="table table-sm mb-0 mt-2">
-                    <thead><tr><th>Servicio</th><th>Instancia EC2</th><th>IP privada</th></tr></thead>
-                    <tbody>
-                      {["frontend", "backend", "db"].map((k) => (
-                        <tr key={k}>
-                          <td>{k === "db" ? "Base de datos" : k[0].toUpperCase() + k.slice(1)}</td>
-                          <td className="font-monospace small">{s.instancias[k]}</td>
-                          <td className="font-monospace small">{s.ips_privadas?.[k]}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <>
+                    <div className="d-flex justify-content-between align-items-baseline mt-2">
+                      <h3 className="h6 mb-0">Servidores</h3>
+                      <button className="btn btn-sm btn-link text-decoration-none p-0" onClick={consultarAws}
+                              disabled={consultandoAws} title="Volver a consultar el estado en AWS">
+                        <i className={`bi bi-arrow-clockwise d-inline-block ${consultandoAws ? "girando" : ""}`} /> Consultar AWS
+                      </button>
+                    </div>
+                    <div className="table-responsive"><table className="table table-sm mb-0 mt-1 align-middle">
+                      <thead><tr><th>Servicio</th><th>Instancia EC2</th><th>Tipo</th><th>IP privada</th><th>Estado en AWS</th></tr></thead>
+                      <tbody>
+                        {["frontend", "backend", "db"].map((k) => {
+                          const real = aws?.instancias?.find((i) => i.servicio === k);
+                          return (
+                            <tr key={k}>
+                              <td>{k === "db" ? "Base de datos" : k[0].toUpperCase() + k.slice(1)}</td>
+                              <td className="font-monospace small text-nowrap">{s.instancias[k]}</td>
+                              <td className="font-monospace small">{real?.tipo || "—"}</td>
+                              <td className="font-monospace small">{s.ips_privadas?.[k]}</td>
+                              <td>
+                                {real ? <EstadoEc2 estado={real.estado} />
+                                  : <span className="text-secondary small">{consultandoAws ? "Consultando…" : "—"}</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table></div>
+                    {aws?.error && (
+                      <div className="small text-danger mt-2">
+                        <i className="bi bi-exclamation-circle" /> No se pudo consultar AWS: {aws.error}
+                      </div>
+                    )}
+                  </>
                 )}
                 {esAdmin && s.leer_admin_password && (
                   <details className="mt-3 small">

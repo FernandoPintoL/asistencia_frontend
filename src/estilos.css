@@ -41,3 +41,6 @@ tr.hoy td { background: #eef6fa; }
 .panel.border-primary { border-color: #9cc7d6 !important; }
 .panel.border-danger { border-color: #e6a9a5 !important; }
 .e-SUSPENDIDO { background: #e8e4f4; color: #5b4a9a; }
+@keyframes girar { to { transform: rotate(360deg); } }
+.girando { animation: girar .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .girando { animation: none; } }

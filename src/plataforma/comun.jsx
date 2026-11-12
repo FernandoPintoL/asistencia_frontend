@@ -61,6 +61,22 @@ export function EstadoOperacion({ estado }) {
   return <span className={`badge-estado ${clase}`}>{texto}</span>;
 }
 
+// Estado de una instancia EC2 tal como lo informa AWS
+const ESTADOS_EC2 = {
+  running: ["Encendida", "e-PRESENTE"],
+  stopped: ["Detenida", "e-SUSPENDIDO"],
+  pending: ["Encendiendo", "e-PENDIENTE"],
+  stopping: ["Deteniendo", "e-PENDIENTE"],
+  "shutting-down": ["Terminando", "e-FALTA"],
+  terminated: ["No existe", "e-FALTA"],
+  no_existe: ["No existe", "e-FALTA"],
+};
+
+export function EstadoEc2({ estado }) {
+  const [texto, clase] = ESTADOS_EC2[estado] || [estado, "e-PROGRAMADA"];
+  return <span className={`badge-estado ${clase}`}>{texto}</span>;
+}
+
 export const enCurso = (op) => op && (op.estado === "PENDIENTE" || op.estado === "EJECUTANDO");
 
 /** Barra de progreso de una operación (RF-11). */

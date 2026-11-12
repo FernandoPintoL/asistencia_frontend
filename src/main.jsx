@@ -5,6 +5,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.min.css";
 import "./estilos.css";
 import App from "./App";
+import { ConfirmarProvider } from "./components/Confirmar";
 import { FlashProvider, SesionProvider } from "./sesion";
 
 createRoot(document.getElementById("root")).render(
@@ -12,7 +13,9 @@ createRoot(document.getElementById("root")).render(
     <BrowserRouter>
       <FlashProvider>
         <SesionProvider>
-          <App />
+          <ConfirmarProvider>
+            <App />
+          </ConfirmarProvider>
         </SesionProvider>
       </FlashProvider>
     </BrowserRouter>

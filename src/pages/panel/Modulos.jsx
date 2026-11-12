@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api";
 import { fecha } from "../../formato";
+import { useConfirmar } from "../../components/Confirmar";
 import { useFlash, useManejarError, useTitulo } from "../../sesion";
 
 export default function Modulos() {
   useTitulo("Módulos");
   const { flash } = useFlash();
+  const confirmar = useConfirmar();
   const manejarError = useManejarError();
   const [lista, setLista] = useState(null);
 
@@ -25,24 +27,40 @@ export default function Modulos() {
     cargar();
   }
 
-  function deshabilitar(m) {
-    if (window.confirm(`Se deshabilitará «${m.nombre}». Ningún estudiante podrá ingresar hasta habilitar un módulo. Los datos se conservan. ¿Continuar?`)) {
-      accion(m, "deshabilitar", "warning");
-    }
+  async function deshabilitar(m) {
+    const ok = await confirmar({
+      titulo: `¿Deshabilitar «${m.nombre}»?`,
+      mensaje: <p className="mb-0">Ningún estudiante podrá ingresar hasta que habilites un módulo. Los datos se conservan.</p>,
+      boton: "Deshabilitar",
+      variante: "warning",
+    });
+    if (ok) accion(m, "deshabilitar", "warning");
   }
 
-  function habilitar(m) {
-    if (window.confirm(`Se habilitará «${m.nombre}». El módulo activo actual quedará deshabilitado. ¿Continuar?`)) {
-      accion(m, "habilitar", "success");
-    }
+  async function habilitar(m) {
+    const ok = await confirmar({
+      titulo: `¿Habilitar «${m.nombre}»?`,
+      mensaje: <p className="mb-0">El módulo activo actual quedará deshabilitado (sus datos se conservan).</p>,
+      boton: "Habilitar",
+      variante: "success",
+    });
+    if (ok) accion(m, "habilitar", "success");
   }
 
-  function eliminar(m) {
-    const t = window.prompt(
-      "ELIMINAR DEFINITIVAMENTE. Se borrarán estudiantes, fechas, asistencias y actividades de este módulo. " +
-      `No se puede deshacer.\n\nEscribe el nombre exacto para confirmar:\n${m.nombre}`,
-    );
-    if (t !== null) accion(m, "eliminar", "success", { confirmacion: t });
+  async function eliminar(m) {
+    const ok = await confirmar({
+      titulo: "Eliminar módulo definitivamente",
+      mensaje: (
+        <>
+          <p>Se borrarán los estudiantes, fechas, asistencias y actividades de <b>{m.nombre}</b>.</p>
+          <p className="mb-0 text-danger fw-semibold">No se puede deshacer.</p>
+        </>
+      ),
+      boton: "Eliminar",
+      variante: "danger",
+      escribir: m.nombre,
+    });
+    if (ok) accion(m, "eliminar", "success", { confirmacion: m.nombre });
   }
 
   if (!lista) return null;

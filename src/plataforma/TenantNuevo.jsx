@@ -46,6 +46,7 @@ export default function TenantNuevo() {
   const [idEditado, setIdEditado] = useState(false);
   const [planes, setPlanes] = useState([]);
   const [motores, setMotores] = useState([]);
+  const [ips, setIps] = useState(null); // cuota de IPs elásticas en AWS
   const [errores, setErrores] = useState({});
   const [enviando, setEnviando] = useState(false);
 
@@ -54,8 +55,17 @@ export default function TenantNuevo() {
       setPlanes(p);
       setForm((f) => ({ ...f, plan: f.plan || p[0]?.codigo || "" }));
     }).catch(manejarError);
-    api("/plataforma/motores/").then(setMotores).catch(manejarError);
+    api("/plataforma/motores/").then((m) => {
+      setMotores(m);
+      // Si el motor por defecto no se puede usar en este servidor, elegir el primero que sí
+      setForm((f) => (m.some((x) => x.codigo === f.motor && x.disponible)
+        ? f : { ...f, motor: m.find((x) => x.disponible)?.codigo || f.motor }));
+    }).catch(manejarError);
+    api("/plataforma/aws/cuotas/").then((d) => setIps(d.ips_elasticas)).catch(() => setIps(null));
   }, [manejarError]);
+
+  const motorElegido = motores.find((m) => m.codigo === form.motor);
+  const noDisponibles = motores.filter((m) => !m.disponible);
 
   const set = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e.target.value }));
 
@@ -139,7 +149,7 @@ export default function TenantNuevo() {
                     <select id="t_motor" className="form-select" value={form.motor} onChange={set("motor")}>
                       {motores.map((m) => (
                         <option key={m.codigo} value={m.codigo} disabled={!m.disponible}>
-                          {m.nombre}{m.disponible ? "" : " (próximamente)"}
+                          {m.nombre}{m.disponible ? "" : " (no disponible)"}
                         </option>
                       ))}
                     </select>
@@ -151,7 +161,29 @@ export default function TenantNuevo() {
                   </Campo>
                 </div>
               </div>
-              <button className="btn btn-primary btn-lg w-100 mt-2" disabled={enviando || !form.plan}>
+              {noDisponibles.length > 0 && (
+                <div className="small text-secondary mb-2">
+                  <i className="bi bi-info-circle" /> Motores no disponibles en este servidor:
+                  <ul className="mb-0 ps-3">
+                    {noDisponibles.map((m) => <li key={m.codigo}><b>{m.nombre}</b>: {m.falta}</li>)}
+                  </ul>
+                </div>
+              )}
+              {ips && ips.libres === 0 && (
+                <div className="alert alert-danger py-2 small">
+                  <i className="bi bi-exclamation-octagon" /> <b>No quedan IPs elásticas</b> ({ips.usadas} de {ips.limite} en
+                  uso). La creación fallará: elimina un tenant que no uses o pide más cuota en AWS (Service Quotas → EC2 →
+                  «EC2-VPC Elastic IPs»).
+                </div>
+              )}
+              {ips && ips.libres === 1 && (
+                <div className="alert alert-warning py-2 small">
+                  <i className="bi bi-exclamation-triangle" /> Este tenant usará la <b>última IP elástica</b> disponible
+                  ({ips.usadas} de {ips.limite} en uso). Después no se podrán crear más sin liberar una.
+                </div>
+              )}
+              <button className="btn btn-primary btn-lg w-100 mt-2"
+                      disabled={enviando || !form.plan || (motorElegido && !motorElegido.disponible)}>
                 {enviando ? "Registrando…" : "Crear tenant y desplegar"}
               </button>
             </div>
