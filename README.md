@@ -1,7 +1,10 @@
 # Frontend · Control de asistencia
 
 React + Vite + Bootstrap 5. Son las pantallas del estudiante y del administrador; todos los datos
-los pide al [backend](../backend/README.md) por su API.
+los pide al [backend](https://github.com/FernandoPintoL/asistencia_backend) por su API.
+
+Infraestructura, plataforma de tenants y documentación del proyecto:
+[infraestructura_asistencia](https://github.com/FernandoPintoL/infraestructura_asistencia).
 
 ## Puesta en marcha
 
